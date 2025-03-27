@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        canvas {
+            border: 1px solid #ddd;
+            display: block;
+            margin: 20px 0;
+            background-color: #eee;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info {
+            background-color: #e2f0fd;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #0069d9;
+        }
+
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            font-size: 14px;
+        }
+
+        .debug-section {
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+
+        .test-options {
+            margin: 15px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>WebGL Test</h1>
+        <p>This page tests if your browser supports WebGL and can render a simple scene.</p>
+
+        <div class="test-options">
+            <button id="test-webgl1">Test WebGL 1.0</button>
+            <button id="test-webgl2">Test WebGL 2.0</button>
+            <button id="test-angle">Test ANGLE</button>
+        </div>
+
+        <canvas id="webgl-canvas" width="400" height="300">
+            Your browser does not support HTML5 canvas
+        </canvas>
+
+        <div id="status" class="status info">Select a test to run</div>
+
+        <div id="info"></div>
+
+        <div class="debug-section">
+            <h3>WebGL Debug Information</h3>
+            <div id="debug-info"></div>
+
+            <h4>Browser Information</h4>
+            <pre id="browser-info"></pre>
+
+            <h4>WebGL Extensions</h4>
+            <pre id="extensions-info">Click a test button to see available extensions</pre>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Display browser information
+            const browserInfoDiv = document.getElementById('browser-info');
+            browserInfoDiv.textContent = `User Agent: ${navigator.userAgent}\nPlatform: ${navigator.platform}`;
+
+            // Set up test buttons
+            document.getElementById('test-webgl1').addEventListener('click', function () {
+                runTest('webgl');
+            });
+
+            document.getElementById('test-webgl2').addEventListener('click', function () {
+                runTest('webgl2');
+            });
+
+            document.getElementById('test-angle').addEventListener('click', function () {
+                testANGLE();
+            });
+        });
+
+        function runTest(contextType) {
+            const canvas = document.getElementById('webgl-canvas');
+            const statusDiv = document.getElementById('status');
+            const infoDiv = document.getElementById('info');
+            const debugInfoDiv = document.getElementById('debug-info');
+            const extensionsInfoDiv = document.getElementById('extensions-info');
+
+            // Clear previous info
+            infoDiv.innerHTML = '';
+            debugInfoDiv.innerHTML = '';
+
+            try {
+                // Try to get WebGL context
+                const contextOptions = {
+                    alpha: true,
+                    depth: true,
+                    stencil: true,
+                    antialias: true,
+                    premultipliedAlpha: true,
+                    preserveDrawingBuffer: false,
+                    powerPreference: "default",
+                    failIfMajorPerformanceCaveat: false
+                };
+
+                debugInfoDiv.innerHTML += `<p>Attempting to get ${contextType} context with options:</p>`;
+                debugInfoDiv.innerHTML += `<pre>${JSON.stringify(contextOptions, null, 2)}</pre>`;
+
+                const gl = canvas.getContext(contextType, contextOptions);
+
+                if (!gl) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = `❌ ${contextType.toUpperCase()} is not supported by your browser`;
+
+                    // Try with different options
+                    debugInfoDiv.innerHTML += `<p>Trying again with minimal options...</p>`;
+                    const minimalGl = canvas.getContext(contextType);
+
+                    if (minimalGl) {
+                        debugInfoDiv.innerHTML += `<p>Success with minimal options!</p>`;
+                    } else {
+                        debugInfoDiv.innerHTML += `<p>Still failed with minimal options.</p>`;
+                    }
+
+                    showRecommendations(infoDiv);
+                    return;
+                }
+
+                // WebGL is supported, show info
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✓ ${contextType.toUpperCase()} is supported`;
+
+                // Display WebGL info
+                const info = document.createElement('div');
+                info.innerHTML = `
+                    <h3>WebGL Information</h3>
+                    <ul>
+                        <li><strong>Vendor:</strong> ${gl.getParameter(gl.VENDOR)}</li>
+                        <li><strong>Renderer:</strong> ${gl.getParameter(gl.RENDERER)}</li>
+                        <li><strong>Version:</strong> ${gl.getParameter(gl.VERSION)}</li>
+                        <li><strong>Shading Language:</strong> ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}</li>
+                        <li><strong>Max Texture Size:</strong> ${gl.getParameter(gl.MAX_TEXTURE_SIZE)}</li>
+                        <li><strong>Max Viewport Dimensions:</strong> ${gl.getParameter(gl.MAX_VIEWPORT_DIMS)}</li>
+                    </ul>
+                `;
+                infoDiv.appendChild(info);
+
+                // List extensions
+                const extensions = gl.getSupportedExtensions();
+                extensionsInfoDiv.textContent = extensions.join('\n');
+
+                // Run a simple rendering test
+                renderTest(gl, canvas, contextType);
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Error initializing ${contextType.toUpperCase()}: ${error.message}`;
+                debugInfoDiv.innerHTML += `<p>Error stack: ${error.stack}</p>`;
+                showRecommendations(infoDiv);
+            }
+        }
+
+        function renderTest(gl, canvas, contextType) {
+            // Clear to blue
+            gl.clearColor(0.0, 0.0, 0.8, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            try {
+                // Create a very simple shader program
+                const vertexShaderSource = `
+                    attribute vec4 position;
+                    void main() {
+                        gl_Position = position;
+                    }
+                `;
+
+                // Use appropriate fragment shader based on WebGL version
+                let fragmentShaderSource;
+                if (contextType === 'webgl2') {
+                    fragmentShaderSource = `#version 300 es
+                        precision mediump float;
+                        out vec4 fragColor;
+                        void main() {
+                            fragColor = vec4(1.0, 1.0, 0.0, 1.0);
+                        }
+                    `;
+                } else {
+                    fragmentShaderSource = `
+                        precision mediump float;
+                        void main() {
+                            gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+                        }
+                    `;
+                }
+
+                // Compile shaders
+                const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+                const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+                // Create program
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    throw new Error('Unable to initialize the shader program: ' +
+                        gl.getProgramInfoLog(program));
+                }
+
+                gl.useProgram(program);
+
+                // Create triangle
+                const positionBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+                const positions = [
+                    0.0, 0.5, 0.0,
+                    -0.5, -0.5, 0.0,
+                    0.5, -0.5, 0.0
+                ];
+
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+                const positionAttributeLocation = gl.getAttribLocation(program, 'position');
+                gl.enableVertexAttribArray(positionAttributeLocation);
+                gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+                // Draw
+                gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+                // Add success message
+                const testResult = document.createElement('div');
+                testResult.className = 'status success';
+                testResult.textContent = `✓ ${contextType.toUpperCase()} rendering test passed! You should see a yellow triangle on a blue background.`;
+                document.getElementById('info').appendChild(testResult);
+
+            } catch (error) {
+                const testResult = document.createElement('div');
+                testResult.className = 'status error';
+                testResult.textContent = `❌ ${contextType.toUpperCase()} rendering test failed: ${error.message}`;
+                document.getElementById('info').appendChild(testResult);
+                document.getElementById('debug-info').innerHTML += `<p>Render test error: ${error.stack}</p>`;
+            }
+        }
+
+        function testANGLE() {
+            const canvas = document.getElementById('webgl-canvas');
+            const statusDiv = document.getElementById('status');
+            const infoDiv = document.getElementById('info');
+            const debugInfoDiv = document.getElementById('debug-info');
+
+            // Clear previous info
+            infoDiv.innerHTML = '';
+            debugInfoDiv.innerHTML = '';
+
+            try {
+                // Try different ANGLE backends
+                const backends = [
+                    { name: "Default", options: {} },
+                    { name: "D3D11", options: { powerPreference: "high-performance" } },
+                    { name: "D3D9", options: { powerPreference: "low-power" } },
+                    { name: "OpenGL", options: {} }
+                ];
+
+                let results = '<h3>ANGLE Backend Tests</h3><ul>';
+
+                for (const backend of backends) {
+                    try {
+                        const gl = canvas.getContext('webgl', backend.options);
+
+                        if (gl) {
+                            const renderer = gl.getParameter(gl.RENDERER);
+                            const vendor = gl.getParameter(gl.VENDOR);
+                            const version = gl.getParameter(gl.VERSION);
+
+                            results += `<li><strong>${backend.name}:</strong> Success<ul>
+                                <li>Renderer: ${renderer}</li>
+                                <li>Vendor: ${vendor}</li>
+                                <li>Version: ${version}</li>
+                            </ul></li>`;
+
+                            // Check if ANGLE is being used
+                            if (renderer.includes('ANGLE') || version.includes('ANGLE')) {
+                                results += `<li style="color: green">ANGLE detected!</li>`;
+                            }
+                        } else {
+                            results += `<li><strong>${backend.name}:</strong> Failed to create context</li>`;
+                        }
+                    } catch (e) {
+                        results += `<li><strong>${backend.name}:</strong> Error - ${e.message}</li>`;
+                    }
+                }
+
+                results += '</ul>';
+                infoDiv.innerHTML = results;
+
+                // Set status
+                statusDiv.className = 'status info';
+                statusDiv.textContent = 'ANGLE tests completed';
+
+                // Additional ANGLE info
+                debugInfoDiv.innerHTML = `
+                    <p>ANGLE (Almost Native Graphics Layer Engine) is a compatibility layer that translates WebGL calls to native graphics APIs.</p>
+                    <p>On Windows, it typically uses Direct3D. On macOS, it uses Metal. On Linux, it uses OpenGL.</p>
+                    <p>If you see "ANGLE" in the renderer or version string, your browser is using ANGLE to provide WebGL support.</p>
+                `;
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Error testing ANGLE: ${error.message}`;
+                debugInfoDiv.innerHTML = `<p>Error: ${error.stack}</p>`;
+            }
+        }
+
+        function compileShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                const info = gl.getShaderInfoLog(shader);
+                gl.deleteShader(shader);
+                throw new Error('An error occurred compiling the shader: ' + info);
+            }
+
+            return shader;
+        }
+
+        function showRecommendations(container) {
+            const recommendations = document.createElement('div');
+            recommendations.innerHTML = `
+                <h3>Recommendations</h3>
+                <p>WebGL is not working properly. Try the following:</p>
+                <ul>
+                    <li>Update your browser to the latest version</li>
+                    <li>Enable hardware acceleration in your browser settings</li>
+                    <li>Update your graphics card drivers</li>
+                    <li>Try a different browser (Chrome, Firefox, or Safari)</li>
+                </ul>
+                <h4>Browser-specific settings:</h4>
+                <p><strong>Chrome:</strong> Go to chrome://settings/system and ensure "Use hardware acceleration when available" is enabled.</p>
+                <p><strong>Firefox:</strong> Go to about:preferences, scroll down to Performance and ensure "Use recommended performance settings" is checked.</p>
+                <p><strong>Safari:</strong> Go to Safari > Preferences > Advanced and check "Show Develop menu in menu bar", then go to Develop > Experimental Features and ensure "WebGL" is enabled.</p>
+                <p><strong>Edge:</strong> Go to edge://settings/system and ensure "Use hardware acceleration when available" is enabled.</p>
+                
+                <h4>Additional troubleshooting:</h4>
+                <ul>
+                    <li>Try disabling browser extensions, especially those related to privacy or ad-blocking</li>
+                    <li>If using a laptop, make sure it's not in power saving mode</li>
+                    <li>Check if your graphics card is blacklisted by your browser</li>
+                    <li>Try forcing hardware acceleration in your browser</li>
+                </ul>
+            `;
+            container.appendChild(recommendations);
+        }
+    </script>
+</body>
+
+</html>

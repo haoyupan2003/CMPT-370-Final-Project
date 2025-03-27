@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Dice Roller</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>3D Dice Roller</h1>
+        </header>
+
+        <div class="controls">
+            <div class="dice-selector">
+                <button id="d4-btn" class="dice-btn">D4</button>
+                <button id="d6-btn" class="dice-btn active">D6</button>
+                <button id="d8-btn" class="dice-btn">D8</button>
+                <button id="d10-btn" class="dice-btn">D10</button>
+                <button id="d12-btn" class="dice-btn">D12</button>
+                <button id="d20-btn" class="dice-btn">D20</button>
+            </div>
+            <div class="action-buttons">
+                <button id="add-dice-btn">Add Dice</button>
+                <button id="roll-btn">Roll</button>
+                <button id="clear-btn">Clear All</button>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="gl-canvas">
+                Your browser does not support WebGL
+            </canvas>
+            <div id="webgl-error" style="display: none; color: red; padding: 20px; text-align: center;">
+                <h3>WebGL Support Error</h3>
+                <p>Your browser doesn't support WebGL. Please try the following:</p>
+                <ul style="text-align: left; display: inline-block;">
+                    <li>Update your browser to the latest version</li>
+                    <li>Enable hardware acceleration in your browser settings</li>
+                    <li>Update your graphics card drivers</li>
+                    <li>Try a different browser (Chrome, Firefox, or Safari)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="results">
+            <h2>Results</h2>
+            <div id="results-display"></div>
+        </div>
+    </div>
+
+    <!-- Shader programs -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 vPosition;
+        attribute vec4 vNormal;
+        attribute vec2 vTexCoord;
+        
+        varying vec3 fNormal;
+        varying vec3 fPosition;
+        varying vec2 fTexCoord;
+        
+        uniform mat4 modelViewMatrix;
+        uniform mat4 projectionMatrix;
+        
+        void main() {
+            fNormal = normalize((modelViewMatrix * vNormal).xyz);
+            fPosition = (modelViewMatrix * vPosition).xyz;
+            fTexCoord = vTexCoord;
+            
+            gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+        }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+    
+        varying vec3 fNormal;
+        varying vec3 fPosition;
+        varying vec2 fTexCoord;
+    
+        uniform vec4 ambientProduct, diffuseProduct, specularProduct;
+        uniform float shininess;
+        uniform vec4 lightPosition;
+        uniform sampler2D texture;
+        uniform bool useTexture;
+    
+        void main() {
+            vec3 L = normalize(lightPosition.xyz - fPosition);
+            vec3 E = normalize(-fPosition);
+            vec3 H = normalize(L + E);
+            vec3 N = normalize(fNormal);
+    
+            vec4 ambient = ambientProduct;
+            float Kd = max(dot(L, N), 0.0);
+            vec4 diffuse = Kd * diffuseProduct;
+            float Ks = pow(max(dot(N, H), 0.0), shininess);
+            vec4 specular = Ks * specularProduct;
+    
+            if (dot(L, N) < 0.0) {
+                specular = vec4(0.0, 0.0, 0.0, 1.0);
+            }
+    
+            vec4 color = ambient + diffuse + specular;
+            color.a = 1.0;
+    
+            if (useTexture) {
+                vec4 texColor = texture2D(texture, fTexCoord);
+                color = color * texColor;
+            }
+    
+            gl_FragColor = color;
+        }
+    </script>
+
+    <!-- Common library scripts -->
+    <script src="Common/initShaders2.js"></script>
+    <script src="Common/MV.js"></script>
+    <script src="Common/flatten.js"></script>
+    <script src="Common/utility.js"></script>
+
+    <!-- Application scripts -->
+    <script src="js/dice-models.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/texture-manager.js"></script>
+    <script src="js/dice-roller.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>

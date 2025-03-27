@@ -1,43 +1,50 @@
+function createProgram(gl, vertexShaderSource, fragmentShaderSource) {
+    // Create and compile vertex shader
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertexShader, vertexShaderSource);
+    gl.compileShader(vertexShader);
 
-    // Get a file as a string using  AJAX
-    function loadFileAJAX(name) {
-        var xhr = new XMLHttpRequest(),
-        okStatus = document.location.protocol === "file:" ? 0 : 200;
-        xhr.open('GET', name, false);
-        xhr.send(null);
-        return xhr.status == okStatus ? xhr.responseText : null;
-    };
+    // Check vertex shader compilation
+    if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+        const error = gl.getShaderInfoLog(vertexShader);
+        gl.deleteShader(vertexShader);
+        console.error('Vertex shader compilation error:', error);
+        throw new Error('Vertex shader compilation failed: ' + error);
+    }
 
+    // Create and compile fragment shader
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragmentShader, fragmentShaderSource);
+    gl.compileShader(fragmentShader);
 
-    function initShaders(gl, vShaderName, fShaderName) {
-        function getShader(gl, shaderName, type) {
-            var shader = gl.createShader(type),
-                shaderScript = loadFileAJAX(shaderName);
-            if (!shaderScript) {
-                alert("Could not find shader source: "+shaderName);
-            }
-            gl.shaderSource(shader, shaderScript);
-            gl.compileShader(shader);
+    // Check fragment shader compilation
+    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+        const error = gl.getShaderInfoLog(fragmentShader);
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+        console.error('Fragment shader compilation error:', error);
+        throw new Error('Fragment shader compilation failed: ' + error);
+    }
 
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                alert(gl.getShaderInfoLog(shader));
-                return null;
-            }
-            return shader;
-        }
-        var vertexShader = getShader(gl, vShaderName, gl.VERTEX_SHADER),
-            fragmentShader = getShader(gl, fShaderName, gl.FRAGMENT_SHADER),
-            program = gl.createProgram();
+    // Create shader program and link shaders
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
 
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
+    // Check program linking
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        const error = gl.getProgramInfoLog(program);
+        gl.deleteProgram(program);
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+        console.error('Shader program linking error:', error);
+        throw new Error('Shader program linking failed: ' + error);
+    }
 
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            alert("Could not initialise shaders");
-            return null;
-        }
+    // Clean up individual shaders as they're now linked into the program
+    gl.deleteShader(vertexShader);
+    gl.deleteShader(fragmentShader);
 
-
-        return program;
-    };
+    return program;
+}
