@@ -33,7 +33,8 @@ h1 {
     margin-bottom: 20px;
 }
 
-.dice-selector, .action-buttons {
+.dice-selector,
+.action-buttons {
     display: flex;
     justify-content: center;
     gap: 10px;
@@ -145,12 +146,23 @@ button:active {
     .canvas-container {
         height: 400px;
     }
-    
+
     .controls {
         gap: 10px;
     }
-    
+
     button {
         padding: 6px 12px;
     }
+}
+
+.results {
+    margin-top: 20px;
+    font-family: Arial, sans-serif;
+}
+
+#results-display {
+    font-size: 18px;
+    color: #333;
+    line-height: 1.5;
 }

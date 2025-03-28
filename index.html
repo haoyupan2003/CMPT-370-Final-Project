@@ -54,23 +54,25 @@
 
     <!-- Shader programs -->
     <script id="vertex-shader" type="x-shader/x-vertex">
-        attribute vec4 vPosition;
-        attribute vec4 vNormal;
+        attribute vec3 vPosition; // Changed to vec3
+        attribute vec3 vNormal;   // Changed to vec3
         attribute vec2 vTexCoord;
-        
+    
         varying vec3 fNormal;
         varying vec3 fPosition;
         varying vec2 fTexCoord;
-        
+    
         uniform mat4 modelViewMatrix;
         uniform mat4 projectionMatrix;
-        
+    
         void main() {
-            fNormal = normalize((modelViewMatrix * vNormal).xyz);
-            fPosition = (modelViewMatrix * vPosition).xyz;
+            vec4 pos = vec4(vPosition, 1.0); // Convert vec3 to vec4
+            vec4 norm = vec4(vNormal, 0.0);  // Convert vec3 to vec4
+            fNormal = normalize((modelViewMatrix * norm).xyz);
+            fPosition = (modelViewMatrix * pos).xyz;
             fTexCoord = vTexCoord;
-            
-            gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+    
+            gl_Position = projectionMatrix * modelViewMatrix * pos;
         }
     </script>
 
