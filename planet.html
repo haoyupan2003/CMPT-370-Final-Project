@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>CMPT 370 Final Project</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #1a1a1a;
+      color: #e0e0e0;
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-bottom: 20px;
+      color: #ffffff;
+    }
+
+    #container {
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    #left-panel {
+      max-width: 600px;
+      text-align: center;
+    }
+
+    canvas {
+      border: 2px solid #444444;
+      display: block;
+      margin: 0 auto 10px;
+      background-color: #000000;
+    }
+
+    button {
+      margin-right: 5px;
+      margin-top: 5px;
+      padding: 8px 12px;
+      background-color: #333333;
+      color: #e0e0e0;
+      border: 1px solid #555555;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #555555;
+    }
+
+    #game-info,
+    #music-info {
+      margin-top: 10px;
+      background-color: #252525;
+      padding: 10px;
+      border-radius: 4px;
+    }
+
+    #game-info p,
+    #music-info p {
+      margin: 4px 0;
+    }
+
+    #music-info {
+      max-width: 300px;
+    }
+
+    #music-info h3 {
+      color: #ffffff;
+    }
+
+    #city-image {
+      border: 1px solid #444444;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>CMPT 370 Final Project</h1>
+  <div id="container">
+    <div id="music-info">
+      <h3>Planet Information</h3>
+      <p>Current Planet: <span id="city-name">—</span></p>
+      <p>Description: <span id="planet-description">—</span></p>
+      <p>Sound: <span id="music-title">—</span></p>
+      <button id="play-music">▶ Play</button>
+      <button id="pause-music">⏸ Pause</button>
+      <p><img id="city-image" src="" width="200" /></p>
+    </div>
+    <div id="left-panel">
+      <canvas id="gl-canvas" width="512" height="512"></canvas>
+      <div>
+        <button id="ButtonX">Rotate X</button>
+        <button id="ButtonY">Rotate Y</button>
+        <button id="ButtonZ">Rotate Z</button>
+        <button id="ButtonT">Toggle Rotation</button>
+        <button id="reset-game">Reset Game</button>
+      </div>
+      <div id="game-info">
+        <p id="target">Target Planet: </p>
+        <p id="score">Score: 0</p>
+        <p id="timer">Time: 10</p>
+        <p id="result"></p>
+      </div>
+    </div>
+  </div>
+  <script id="vertex-shader" type="x-shader/x-vertex">
+    #version 300 es
+    in vec4 aPosition;
+    in vec3 aNormal;
+    in vec2 aTexCoord;
+    out vec4 vColor;
+    out vec2 vTexCoord;
+    uniform vec4 uAmbientProduct, uDiffuseProduct, uSpecularProduct;
+    uniform mat4 uModelViewMatrix;
+    uniform mat4 uProjectionMatrix;
+    uniform vec4 uLightPosition;
+    uniform float uShininess;
+    void main() {
+        vec3 pos = -(uModelViewMatrix * aPosition).xyz;
+        vec3 light = uLightPosition.xyz;
+        vec3 L = normalize(light - pos);
+        vec3 E = normalize(-pos);
+        vec3 H = normalize(L + E);
+        vec4 NN = vec4(aNormal, 0.0);
+        vec3 N = normalize((uModelViewMatrix * NN).xyz);
+        vec4 ambient = uAmbientProduct;
+        float Kd = max(dot(L, N), 0.0);
+        vec4 diffuse = Kd * uDiffuseProduct;
+        float Ks = pow(max(dot(N, H), 0.0), uShininess);
+        vec4 specular = Ks * uSpecularProduct;
+        if (dot(L, N) < 0.0) {
+          specular = vec4(0.0, 0.0, 0.0, 1.0);
+        }
+        vColor = ambient + diffuse + specular;
+        vColor.a = 1.0;
+        vTexCoord = aTexCoord;
+        gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
+    }
+  </script>
+  <script id="fragment-shader" type="x-shader/x-fragment">
+    #version 300 es
+    precision mediump float;
+    in vec4 vColor;
+    in vec2 vTexCoord;
+    out vec4 fColor;
+    uniform sampler2D uSampler;
+    uniform int uColorIndex;
+    uniform bool uPickingMode;
+    void main() {
+        vec4 texColor = texture(uSampler, vTexCoord);
+        vec4 colorMasks[4];
+        colorMasks[0] = vec4(1.0, 0.0, 0.0, 1.0);  // red (Sun)
+        colorMasks[1] = vec4(1.0, 1.0, 0.0, 1.0);  // yellow (Earth)
+        colorMasks[2] = vec4(1.0, 0.5, 0.0, 1.0);  // orange (Mars)
+        colorMasks[3] = vec4(0.0, 1.0, 0.0, 1.0);  // green (Moon)
+        if (uPickingMode) {
+            fColor = colorMasks[uColorIndex - 1];
+        } else {
+            vec4 maskColor = uColorIndex >= 0 && uColorIndex < 4 ? colorMasks[uColorIndex] : vec4(1.0);
+            vec3 finalColor = texColor.rgb * maskColor.rgb;
+            fColor = vec4(finalColor, 1.0);
+        }
+    }
+  </script>
+  <script src="Common/initShaders.js"></script>
+  <script src="Common/MVnew.js"></script>
+  <script src="planet.js"></script>
+  <script>
+    document.body.addEventListener("click", function onceClick() {
+      const testAudio = new Audio();
+      testAudio.play().catch(() => { });
+      document.body.removeEventListener("click", onceClick);
+    });
+  </script>
+</body>
+
+</html>
